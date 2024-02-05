@@ -1,0 +1,105 @@
+# general settings
+name: BF_Experiment 
+model_type: ImageEventRestorationModel
+scale: 1
+num_gpu: 1
+manual_seed: 10
+
+datasets:
+  train:
+    name: gopro-h5-train
+    type: H5ImageDataset3
+
+    dataroot: /workspace/lidasong/BF-event-deblurring/datasets/GOPRO_rawevents/test
+    # keep true if use events
+    norm_voxel: true
+    return_voxel: true
+    load_h5: true
+
+    return_mask: true
+    use_mask: true
+
+    filename_tmpl: '{}'
+    io_backend:
+      type: h5
+
+    crop_size: 512
+    use_flip: true
+    use_rot: true
+
+    # data loader settings
+    use_shuffle: false
+    num_worker_per_gpu: 1
+    batch_size_per_gpu: 1 # 4 for 2080, 8 for titan
+    dataset_enlarge_ratio: 1  # accelarate, equals to the num_gpu
+    prefetch_mode: ~
+
+dataset_name: GoPro
+
+# network structures
+network_g:
+  type: EFNet31
+  wf: 64 
+  fuse_before_downsample: true
+
+# path
+path:
+  pretrain_network_g: ~
+  strict_load_g: true
+  resume_state: ~
+  training_states: ~ # save current trainig model states, for resume
+
+# training settings
+train:
+  optim_g:
+    type: AdamW
+    lr: !!float 1e-6
+    weight_decay: !!float 1e-4
+    betas: [0.9, 0.99]
+
+  scheduler:
+    type: TrueCosineAnnealingLR
+    T_max: 200
+    eta_min: !!float 1e-7
+
+  total_iter: 200
+  warmup_iter: -1 # no warm up
+
+  # losses
+  pixel_opt:
+    type: PSNRLoss
+    loss_weight: 1.0
+    reduction: mean
+
+# validation settings
+val:
+  val_freq: !!float 5e7 # 2e4
+  save_img: false  
+  grids: ~  
+  crop_size: ~ 
+  max_minibatch: 8  
+
+  metrics:
+    psnr:
+      type: calculate_psnr
+      crop_border: 0
+      test_y_channel: false
+    
+    ssim:
+      type: calculate_ssim
+      crop_border: 0
+      test_y_channel: false   
+
+# logging settings
+logger:
+  print_freq: 1
+  save_checkpoint_freq: !!float 1e5
+  use_tb_logger: true
+  wandb:
+    project: ~
+    resume_id: ~
+
+# dist training settings
+dist_params:
+  backend: nccl
+  port: 29500
